@@ -1,0 +1,6 @@
+@CsvToExcelApi_HostAddress = http://localhost:5274
+
+GET {{CsvToExcelApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
