@@ -6,5 +6,9 @@ namespace Server.Controllers;
 [Route("api/[controller]")]
 public class HomeController : ControllerBase
 {
-    // Empty initial controller; add actions as needed.
+    [HttpGet]
+    public IActionResult Get()
+    {
+        return Ok();
+    }
 }

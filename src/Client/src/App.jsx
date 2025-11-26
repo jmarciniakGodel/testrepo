@@ -3,15 +3,16 @@ import axios from 'axios'
 
 export default function App() {
   const [message, setMessage] = useState('ASP.NET Core + React starter')
+  const [apiStatus, setApiStatus] = useState('Checking API...')
 
   useEffect(() => {
-    // Example call to your API; will 404 until you add an action in HomeController.
+    // Example call to your API
     axios.get('/api/home')
       .then(() => {
-        // No content yet.
+        setApiStatus('✓ API is responding')
       })
       .catch(() => {
-        // Controller is empty; ignore for now.
+        setApiStatus('✗ API is not available')
       })
   }, [])
 
@@ -24,6 +25,7 @@ export default function App() {
             Your backend is on <code>http://localhost:5000</code> and
             your frontend on <code>http://localhost:5173</code>.
           </p>
+          <p className="text-success">{apiStatus}</p>
           <button className="btn btn-success">Bootstrap Button</button>
         </div>
       </div>
