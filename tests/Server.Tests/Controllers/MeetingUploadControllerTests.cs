@@ -147,6 +147,68 @@ John Doe,john@example.com,60";
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    [Fact]
+    public async Task GetAllSummaries_NoSummaries_ReturnsEmptyList()
+    {
+        // Act
+        var result = await _controller.GetAllSummaries();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var summaries = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        Assert.Empty(summaries);
+    }
+
+    [Fact]
+    public async Task GetAllSummaries_WithSummaries_ReturnsList()
+    {
+        // Arrange
+        var csv = @"Meeting 1,2024-01-15
+Name,Email,Duration
+John Doe,john@example.com,45";
+
+        var file = CreateFormFile(csv, "meeting.csv", "text/csv");
+        await _controller.UploadMeetingCsvs(new List<IFormFile> { file });
+
+        // Act
+        var result = await _controller.GetAllSummaries();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var summaries = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        Assert.Single(summaries);
+    }
+
+    [Fact]
+    public async Task GetSummaryById_ValidId_ReturnsSummary()
+    {
+        // Arrange
+        var csv = @"Meeting 1,2024-01-15
+Name,Email,Duration
+John Doe,john@example.com,45";
+
+        var file = CreateFormFile(csv, "meeting.csv", "text/csv");
+        await _controller.UploadMeetingCsvs(new List<IFormFile> { file });
+
+        // Act
+        var result = await _controller.GetSummaryById(1);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+    }
+
+    [Fact]
+    public async Task GetSummaryById_InvalidId_ReturnsNotFound()
+    {
+        // Act
+        var result = await _controller.GetSummaryById(999);
+
+        // Assert
+        var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.NotNull(notFoundResult.Value);
+    }
+
     private static IFormFile CreateFormFile(string content, string fileName, string contentType)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);

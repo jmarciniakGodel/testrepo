@@ -150,4 +150,59 @@ public class MeetingUploadController : ControllerBase
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAllSummaries()
+    {
+        try
+        {
+            var summaries = await _summaryRepository.GetAllAsync();
+            var summaryList = summaries.Select(s => new
+            {
+                id = s.Id,
+                createdAt = s.CreatedAt,
+                meetingCount = s.Meetings.Count,
+                htmlTable = s.HtmlTable
+            });
+
+            return Ok(summaryList);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetSummaryById(int id)
+    {
+        try
+        {
+            var summary = await _summaryRepository.GetByIdAsync(id);
+            
+            if (summary == null)
+            {
+                return NotFound(new { error = $"Summary with ID {id} not found" });
+            }
+
+            return Ok(new
+            {
+                id = summary.Id,
+                createdAt = summary.CreatedAt,
+                meetingCount = summary.Meetings.Count,
+                htmlTable = summary.HtmlTable,
+                meetings = summary.Meetings.Select(m => new
+                {
+                    id = m.Id,
+                    title = m.Title,
+                    date = m.Date,
+                    attendeeCount = m.MeetingAttendances.Count
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
 }

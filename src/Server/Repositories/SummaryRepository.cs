@@ -29,4 +29,13 @@ public class SummaryRepository : ISummaryRepository
             .ThenInclude(ma => ma.Attendant)
             .FirstOrDefaultAsync(s => s.Id == id);
     }
+
+    public async Task<IEnumerable<Summary>> GetAllAsync()
+    {
+        return await _context.Summaries
+            .Include(s => s.Meetings)
+            .ThenInclude(m => m.MeetingAttendances)
+            .ThenInclude(ma => ma.Attendant)
+            .ToListAsync();
+    }
 }

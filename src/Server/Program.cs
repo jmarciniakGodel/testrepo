@@ -10,6 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services
 builder.Services.AddControllers();
 
+// Add Swagger/OpenAPI support
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Meeting Upload API", Version = "v1" });
+});
+
 // Configure Entity Framework with SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=meetings.db"));
@@ -30,6 +37,15 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure middleware
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Meeting Upload API v1");
+    });
+}
+
 app.UseHttpsRedirection();
 app.MapControllers();
 
