@@ -6,6 +6,9 @@ import App from './App'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap'
 
+// Import react-toastify CSS
+import 'react-toastify/dist/ReactToastify.css'
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
