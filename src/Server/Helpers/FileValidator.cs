@@ -33,6 +33,24 @@ public static class FileValidator
             if (bytesRead == 0)
                 return false;
 
+            // Check for UTF-16 BOM (either Little Endian or Big Endian)
+            if (bytesRead >= 2)
+            {
+                if ((buffer[0] == 0xFF && buffer[1] == 0xFE) || // UTF-16 LE BOM
+                    (buffer[0] == 0xFE && buffer[1] == 0xFF))   // UTF-16 BE BOM
+                {
+                    // This is a UTF-16 encoded file, which is valid for CSV
+                    return true;
+                }
+            }
+
+            // Check for UTF-8 BOM
+            if (bytesRead >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF)
+            {
+                // UTF-8 with BOM is valid
+                return true;
+            }
+
             // Check if it contains printable ASCII characters typical of CSV
             // CSV files should contain mostly ASCII printable characters
             var asciiCount = 0;
