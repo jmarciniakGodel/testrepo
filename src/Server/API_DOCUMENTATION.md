@@ -1,16 +1,21 @@
 # Meeting CSV Upload API
 
 ## Overview
-This API endpoint allows uploading multiple meeting attendance CSV files and generates HTML and XLSX summaries.
+This API provides endpoints for uploading meeting attendance CSV files, generating summaries, and retrieving summary data.
 
-## Endpoint
-**POST** `/api/MeetingUpload`
+## Swagger Documentation
+Interactive API documentation is available at `/swagger/index.html` when running in Development mode.
 
-## Request
+## Endpoints
+
+### POST `/api/MeetingUpload`
+Upload multiple meeting attendance CSV files and generate a summary.
+
+#### Request
 - **Content-Type**: `multipart/form-data`
 - **Body**: Multiple file uploads with field name `files`
 
-### CSV Format
+#### CSV Format
 Each CSV file should have the following structure:
 
 ```csv
@@ -24,14 +29,12 @@ Jane Smith,jane@example.com,30
 - **Line 2**: Column headers (Name, Email, Duration)
 - **Line 3+**: Attendee data rows
 
-### Duration Format
+#### Duration Format
 Duration can be specified in minutes as:
 - Plain number: `45` (interpreted as 45 minutes)
 - With unit: `45 min`, `45 mins`, `45 minutes`
 
-## Response
-
-### Success (200 OK)
+#### Response (Success - 200 OK)
 ```json
 {
   "summaryId": 1,
@@ -39,34 +42,98 @@ Duration can be specified in minutes as:
 }
 ```
 
-### Error (400 Bad Request)
+#### Response (Error - 400 Bad Request)
 ```json
 {
   "error": "Error message describing the issue"
 }
 ```
 
+### GET `/api/MeetingUpload`
+Retrieve all summaries.
+
+#### Response (Success - 200 OK)
+```json
+[
+  {
+    "id": 1,
+    "createdAt": "2024-01-15T10:30:00",
+    "meetingCount": 2,
+    "htmlTable": "<table>...</table>"
+  }
+]
+```
+
+### GET `/api/MeetingUpload/{id}`
+Retrieve a specific summary by ID.
+
+#### Parameters
+- `id` (path parameter): The ID of the summary to retrieve
+
+#### Response (Success - 200 OK)
+```json
+{
+  "id": 1,
+  "createdAt": "2024-01-15T10:30:00",
+  "meetingCount": 2,
+  "htmlTable": "<table>...</table>",
+  "meetings": [
+    {
+      "id": 1,
+      "title": "Team Standup",
+      "date": "2024-01-15T00:00:00",
+      "attendeeCount": 4
+    }
+  ]
+}
+```
+
+#### Response (Not Found - 404)
+```json
+{
+  "error": "Summary with ID 999 not found"
+}
+```
+
 ## Example Usage
 
-### cURL
+### Upload CSV Files (cURL)
 ```bash
 curl -X POST http://localhost:5000/api/MeetingUpload \
   -F "files=@meeting1.csv;type=text/csv" \
   -F "files=@meeting2.csv;type=text/csv"
 ```
 
+### Get All Summaries (cURL)
+```bash
+curl -X GET http://localhost:5000/api/MeetingUpload
+```
+
+### Get Summary by ID (cURL)
+```bash
+curl -X GET http://localhost:5000/api/MeetingUpload/1
+```
+
 ### JavaScript (Axios)
 ```javascript
+// Upload files
 const formData = new FormData();
 formData.append('files', file1);
 formData.append('files', file2);
 
-const response = await axios.post('/api/MeetingUpload', formData, {
+const uploadResponse = await axios.post('/api/MeetingUpload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' }
 });
 
-console.log('Summary ID:', response.data.summaryId);
-console.log('HTML Table:', response.data.htmlTable);
+console.log('Summary ID:', uploadResponse.data.summaryId);
+
+// Get all summaries
+const allSummaries = await axios.get('/api/MeetingUpload');
+console.log('All Summaries:', allSummaries.data);
+
+// Get specific summary
+const summary = await axios.get(`/api/MeetingUpload/${uploadResponse.data.summaryId}`);
+console.log('Summary Details:', summary.data);
 ```
 
 ## Features
