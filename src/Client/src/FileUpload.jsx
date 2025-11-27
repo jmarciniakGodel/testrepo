@@ -99,12 +99,14 @@ export default function FileUpload() {
       link.href = downloadUrl
       
       // Try to get filename from Content-Disposition header
-      const contentDisposition = response.headers['content-disposition']
+      // Headers are case-insensitive, so we need to handle different casings
+      const contentDisposition = response.headers['content-disposition'] || response.headers['Content-Disposition']
       let filename = 'attendance-summary.xlsx'
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/)
-        if (filenameMatch) {
-          filename = filenameMatch[1]
+        // Match filename with or without quotes, stopping at semicolon or end of string
+        const filenameMatch = contentDisposition.match(/filename[*]?=['"]?([^'";]+)['"]?/i)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].trim()
         }
       }
       
