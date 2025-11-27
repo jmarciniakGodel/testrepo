@@ -136,6 +136,7 @@ public class MeetingUploadController : ControllerBase
             foreach (var meeting in meetings)
             {
                 meeting.SummaryId = summary.Id;
+                await _meetingRepository.UpdateAsync(meeting);
             }
 
             return Ok(new

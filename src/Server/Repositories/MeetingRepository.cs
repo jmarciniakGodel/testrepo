@@ -29,4 +29,10 @@ public class MeetingRepository : IMeetingRepository
             .ThenInclude(ma => ma.Attendant)
             .ToListAsync();
     }
+
+    public async Task UpdateAsync(Meeting meeting)
+    {
+        _context.Meetings.Update(meeting);
+        await _context.SaveChangesAsync();
+    }
 }

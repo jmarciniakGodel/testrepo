@@ -6,4 +6,5 @@ public interface IMeetingRepository
 {
     Task<Meeting> CreateAsync(Meeting meeting);
     Task<IEnumerable<Meeting>> GetBySummaryIdAsync(int summaryId);
+    Task UpdateAsync(Meeting meeting);
 }

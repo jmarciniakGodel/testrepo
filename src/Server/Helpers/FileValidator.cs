@@ -2,8 +2,6 @@ namespace Server.Helpers;
 
 public static class FileValidator
 {
-    private static readonly byte[] CsvMagicNumbers = { 0x22, 0x4E, 0x61, 0x6D, 0x65 }; // "Name or similar CSV headers
-    
     public static bool IsValidCsvMimeType(string contentType)
     {
         var validMimeTypes = new[] 
