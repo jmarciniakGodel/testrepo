@@ -15,28 +15,28 @@ public static class HtmlSummaryGenerator
     {
         var html = new StringBuilder();
         
-        html.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; font-family: Arial, sans-serif;'>");
+        html.Append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; font-family: Arial, sans-serif;'>");
         
         // Header row
-        html.AppendLine("  <thead>");
-        html.AppendLine("    <tr style='background-color: #4CAF50; color: white;'>");
-        html.AppendLine("      <th>Attendant Email</th>");
+        html.Append("<thead>");
+        html.Append("<tr style='background-color: #4CAF50; color: white;'>");
+        html.Append("<th>Attendant Email</th>");
         
         foreach (var meeting in data.MeetingHeaders)
         {
-            html.AppendLine($"      <th>{System.Net.WebUtility.HtmlEncode(meeting)}</th>");
+            html.Append($"<th>{System.Net.WebUtility.HtmlEncode(meeting)}</th>");
         }
         
-        html.AppendLine("    </tr>");
-        html.AppendLine("  </thead>");
+        html.Append("</tr>");
+        html.Append("</thead>");
         
         // Body rows
-        html.AppendLine("  <tbody>");
+        html.Append("<tbody>");
         
         foreach (var email in data.AttendantEmails)
         {
-            html.AppendLine("    <tr>");
-            html.AppendLine($"      <td>{System.Net.WebUtility.HtmlEncode(email)}</td>");
+            html.Append("<tr>");
+            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(email)}</td>");
             
             foreach (var meeting in data.MeetingHeaders)
             {
@@ -49,14 +49,14 @@ public static class HtmlSummaryGenerator
                 }
                 
                 var formattedDuration = FormatDuration(duration);
-                html.AppendLine($"      <td style='text-align: center;'>{formattedDuration}</td>");
+                html.Append($"<td style='text-align: center;'>{formattedDuration}</td>");
             }
             
-            html.AppendLine("    </tr>");
+            html.Append("</tr>");
         }
         
-        html.AppendLine("  </tbody>");
-        html.AppendLine("</table>");
+        html.Append("</tbody>");
+        html.Append("</table>");
         
         return html.ToString();
     }
