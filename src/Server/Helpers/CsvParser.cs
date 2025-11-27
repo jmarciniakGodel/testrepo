@@ -61,17 +61,14 @@ public static class CsvParser
             meetingData.Date = DateTime.Now;
         }
 
-        // Parse attendees starting from line 3 (skip header at line 2)
+        // Parse attendees starting from line 3 (skip title at line 1 and header at line 2)
         using var csvReader = new StringReader(string.Join('\n', lines.Skip(2)));
         using var csv = new CsvReader(csvReader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            HasHeaderRecord = true,
+            HasHeaderRecord = false,
             MissingFieldFound = null,
             HeaderValidated = null
         });
-
-        await csv.ReadAsync();
-        csv.ReadHeader();
 
         while (await csv.ReadAsync())
         {
