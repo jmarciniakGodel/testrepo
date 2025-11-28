@@ -95,6 +95,24 @@ Retrieve a specific summary by ID.
 }
 ```
 
+### GET `/api/MeetingUpload/{id}/download`
+Download the Excel summary file for a specific summary.
+
+#### Parameters
+- `id` (path parameter): The ID of the summary to download
+
+#### Response (Success - 200 OK)
+Returns an Excel file (.xlsx) with the summary data.
+- **Content-Type**: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- **Content-Disposition**: `attachment; filename="meeting-summary-YYYYMMDD-HHmmss.xlsx"`
+
+#### Response (Not Found - 404)
+```json
+{
+  "error": "Summary with ID 999 not found"
+}
+```
+
 ## Example Usage
 
 ### Upload CSV Files (cURL)
@@ -134,6 +152,20 @@ console.log('All Summaries:', allSummaries.data);
 // Get specific summary
 const summary = await axios.get(`/api/MeetingUpload/${uploadResponse.data.summaryId}`);
 console.log('Summary Details:', summary.data);
+
+// Download Excel summary
+const excelBlob = await axios.get(`/api/MeetingUpload/${uploadResponse.data.summaryId}/download`, {
+  responseType: 'blob'
+});
+
+// Create download link
+const url = window.URL.createObjectURL(new Blob([excelBlob.data]));
+const link = document.createElement('a');
+link.href = url;
+link.setAttribute('download', 'meeting-summary.xlsx');
+document.body.appendChild(link);
+link.click();
+link.remove();
 ```
 
 ## Features
