@@ -4,7 +4,10 @@ import App from './App'
 
 // Import Bootstrap CSS and JS
 import 'bootstrap/dist/css/bootstrap.min.css'
-import 'bootstrap'
+import * as bootstrap from 'bootstrap'
+
+// Make Bootstrap available globally for modal functionality
+window.bootstrap = bootstrap
 
 // Import react-toastify CSS
 import 'react-toastify/dist/ReactToastify.css'
