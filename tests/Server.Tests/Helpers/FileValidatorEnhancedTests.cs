@@ -1,4 +1,5 @@
 using Server.Helpers;
+using System.Text;
 
 namespace Server.Tests.Helpers;
 
@@ -100,5 +101,27 @@ Jane Smith,jane@example.com,30";
         // Assert
         Assert.False(result.IsValid);
         Assert.Equal("BINARY_CONTENT", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ValidateCsvFileAsync_Utf16WithBom_ReturnsSuccess()
+    {
+        // Arrange - UTF-16 LE BOM followed by simple text
+        var utf16Text = "Name\tEmail\tDuration\r\nJohn Doe\tjohn@example.com\t45m\r\n";
+        var encoding = Encoding.Unicode; // UTF-16 LE
+        var preamble = encoding.GetPreamble(); // BOM
+        var contentBytes = encoding.GetBytes(utf16Text);
+        var bytes = new byte[preamble.Length + contentBytes.Length];
+        Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
+        Buffer.BlockCopy(contentBytes, 0, bytes, preamble.Length, contentBytes.Length);
+        
+        var stream = new MemoryStream(bytes);
+
+        // Act
+        var result = await FileValidator.ValidateCsvFileAsync(stream, "meeting.csv");
+
+        // Assert
+        Assert.True(result.IsValid, $"Expected valid but got: {result.ErrorCode} - {result.ErrorMessage}");
+        Assert.Equal("text/csv", result.DetectedType);
     }
 }

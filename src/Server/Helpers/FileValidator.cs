@@ -94,6 +94,7 @@ public static class FileValidator
             // Detect encoding and get text content for analysis
             var encoding = DetectEncoding(buffer, bytesRead);
             var bomLength = GetBomLength(buffer, encoding);
+            var hasBom = bomLength > 0;
             string textContent;
             
             try
@@ -126,7 +127,8 @@ public static class FileValidator
             }
 
             // Check for other binary/non-CSV formats
-            if (IsBinaryContent(buffer, bytesRead))
+            // Skip binary check if file has a text BOM (UTF-8, UTF-16) as these are valid text files
+            if (!hasBom && IsBinaryContent(buffer, bytesRead))
             {
                 return new ValidationResult
                 {
