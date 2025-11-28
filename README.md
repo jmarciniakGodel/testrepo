@@ -43,7 +43,33 @@ A full-stack application for managing and analyzing meeting attendance data thro
 
 ## CSV File Format
 
-Each CSV file should follow this structure:
+The application supports two CSV formats:
+
+### Microsoft Teams Attendance Report Format (Recommended)
+
+Export attendance reports directly from Microsoft Teams. The CSV file includes:
+- **1. Summary** section with meeting title, start time, end time, and duration
+- **2. Participants** section with participant details including:
+  - Name, First Join, Last Leave, In-Meeting Duration, Email, Participant ID (UPN), Role
+- **3. In-Meeting Activities** section
+
+Example structure:
+```
+1. Summary
+Meeting title	Meeting with Jan Nowak
+Start time	11/26/25, 4:16:54 PM
+End time	11/26/25, 4:18:08 PM
+
+2. Participants
+Name	First Join	Last Leave	In-Meeting Duration	Email	Participant ID (UPN)	Role
+Jan Nowak	11/26/25, 4:16:55 PM	11/26/25, 4:18:08 PM	1m 13s	j.nowak@gmail.com	j.nowak@gmail.com	Organizer
+```
+
+**Note:** The application automatically detects and parses Teams format with tab-separated values.
+
+### Simple CSV Format (Alternative)
+
+For custom data, use this simplified format:
 ```csv
 Meeting Title,2024-01-15
 Name,Email,Duration
