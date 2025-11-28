@@ -63,19 +63,26 @@ public class MeetingUploadController : ControllerBase
     /// Retrieves all summaries with pagination and optional filtering
     /// </summary>
     /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Number of items per page (default: 10)</param>
-    /// <param name="search">Optional search query</param>
+    /// <param name="pageSize">Number of items per page (default: 5)</param>
+    /// <param name="search">Optional search query for meeting titles</param>
+    /// <param name="number">Optional summary number to filter by</param>
+    /// <param name="sortDesc">Sort by created date descending (default: true)</param>
     /// <returns>Paginated list of summaries</returns>
     [HttpGet]
-    public async Task<IActionResult> GetAllSummaries([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetAllSummaries(
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 5, 
+        [FromQuery] string? search = null,
+        [FromQuery] int? number = null,
+        [FromQuery] bool sortDesc = true)
     {
         try
         {
             // Validate pagination parameters
             if (page < 1) page = 1;
-            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+            if (pageSize < 1 || pageSize > 100) pageSize = 5;
 
-            var (summaries, totalCount) = await _summaryService.GetPagedSummariesAsync(page, pageSize, search);
+            var (summaries, totalCount) = await _summaryService.GetPagedSummariesAsync(page, pageSize, search, number, sortDesc);
             var summaryList = summaries.Select(s => new
             {
                 id = s.Id,

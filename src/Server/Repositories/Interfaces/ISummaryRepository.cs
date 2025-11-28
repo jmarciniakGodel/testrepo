@@ -33,6 +33,8 @@ public interface ISummaryRepository
     /// <param name="page">The page number (1-based)</param>
     /// <param name="pageSize">The number of items per page</param>
     /// <param name="searchQuery">Optional search query to filter results</param>
+    /// <param name="summaryNumber">Optional summary number to filter by</param>
+    /// <param name="sortDescending">Sort by created date descending (default: true)</param>
     /// <returns>Tuple containing the summaries and total count</returns>
-    Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedAsync(int page, int pageSize, string? searchQuery = null);
+    Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedAsync(int page, int pageSize, string? searchQuery = null, int? summaryNumber = null, bool sortDescending = true);
 }

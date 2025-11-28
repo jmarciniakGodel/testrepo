@@ -36,10 +36,12 @@ public class SummaryService : ISummaryService
     /// <param name="page">The page number (1-based)</param>
     /// <param name="pageSize">The number of items per page</param>
     /// <param name="searchQuery">Optional search query to filter results</param>
+    /// <param name="summaryNumber">Optional summary number to filter by</param>
+    /// <param name="sortDescending">Sort by created date descending (default: true)</param>
     /// <returns>Tuple containing the summaries and total count</returns>
-    public async Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedSummariesAsync(int page, int pageSize, string? searchQuery = null)
+    public async Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedSummariesAsync(int page, int pageSize, string? searchQuery = null, int? summaryNumber = null, bool sortDescending = true)
     {
-        return await _summaryRepository.GetPagedAsync(page, pageSize, searchQuery);
+        return await _summaryRepository.GetPagedAsync(page, pageSize, searchQuery, summaryNumber, sortDescending);
     }
 
     /// <summary>

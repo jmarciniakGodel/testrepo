@@ -12,11 +12,14 @@ export default function Summaries() {
   const [isLoading, setIsLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(10)
+  const [pageSize] = useState(5)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [summaryNumber, setSummaryNumber] = useState('')
+  const [summaryNumberInput, setSummaryNumberInput] = useState('')
+  const [sortDescending, setSortDescending] = useState(true)
 
   /**
    * Fetches summaries from the API with pagination and search parameters
@@ -28,7 +31,9 @@ export default function Summaries() {
         params: {
           page: currentPage,
           pageSize: pageSize,
-          search: searchQuery || undefined
+          search: searchQuery || undefined,
+          number: summaryNumber || undefined,
+          sortDesc: sortDescending
         }
       })
       setSummaries(response.data.summaries)
@@ -44,7 +49,7 @@ export default function Summaries() {
 
   useEffect(() => {
     fetchSummaries()
-  }, [currentPage, searchQuery])
+  }, [currentPage, searchQuery, summaryNumber, sortDescending])
 
   /**
    * Handles the Excel file download for a specific summary
@@ -108,15 +113,26 @@ export default function Summaries() {
   const handleSearch = (e) => {
     e.preventDefault()
     setSearchQuery(searchInput)
+    setSummaryNumber(summaryNumberInput)
     setCurrentPage(1) // Reset to first page on new search
   }
 
   /**
-   * Clears the search filter
+   * Clears all search filters
    */
   const handleClearSearch = () => {
     setSearchInput('')
     setSearchQuery('')
+    setSummaryNumberInput('')
+    setSummaryNumber('')
+    setCurrentPage(1)
+  }
+
+  /**
+   * Toggles the sort order for created date
+   */
+  const toggleSort = () => {
+    setSortDescending(!sortDescending)
     setCurrentPage(1)
   }
 
@@ -169,23 +185,35 @@ export default function Summaries() {
           <div className="card mb-4">
             <div className="card-body">
               <form onSubmit={handleSearch}>
-                <div className="row g-2">
-                  <div className="col">
+                <div className="row g-2 mb-2">
+                  <div className="col-md-4">
+                    <label htmlFor="searchInput" className="form-label small">Search by meeting title</label>
                     <input
+                      id="searchInput"
                       type="text"
                       className="form-control"
-                      placeholder="Search by summary ID or meeting title..."
+                      placeholder="e.g., Kowalski..."
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                     />
                   </div>
-                  <div className="col-auto">
-                    <button type="submit" className="btn btn-primary">
+                  <div className="col-md-3">
+                    <label htmlFor="numberInput" className="form-label small">Filter by number</label>
+                    <input
+                      id="numberInput"
+                      type="number"
+                      className="form-control"
+                      placeholder="Summary number..."
+                      value={summaryNumberInput}
+                      onChange={(e) => setSummaryNumberInput(e.target.value)}
+                      min="1"
+                    />
+                  </div>
+                  <div className="col-md-3 d-flex align-items-end">
+                    <button type="submit" className="btn btn-primary me-2">
                       Search
                     </button>
-                  </div>
-                  {searchQuery && (
-                    <div className="col-auto">
+                    {(searchQuery || summaryNumber) && (
                       <button 
                         type="button" 
                         className="btn btn-outline-secondary"
@@ -193,13 +221,39 @@ export default function Summaries() {
                       >
                         Clear
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div className="col-md-2 d-flex align-items-end">
+                    <button 
+                      type="button" 
+                      className="btn btn-outline-primary w-100"
+                      onClick={toggleSort}
+                      title={sortDescending ? "Click to sort oldest first" : "Click to sort newest first"}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        className="me-1"
+                        viewBox="0 0 16 16"
+                      >
+                        {sortDescending ? (
+                          <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>
+                        ) : (
+                          <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.497.497 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>
+                        )}
+                      </svg>
+                      {sortDescending ? 'Newest' : 'Oldest'}
+                    </button>
+                  </div>
                 </div>
               </form>
-              {searchQuery && (
+              {(searchQuery || summaryNumber) && (
                 <small className="text-muted mt-2 d-block">
-                  Showing results for: <strong>{searchQuery}</strong>
+                  {searchQuery && <span>Searching for: <strong>{searchQuery}</strong></span>}
+                  {searchQuery && summaryNumber && <span> | </span>}
+                  {summaryNumber && <span>Number: <strong>{summaryNumber}</strong></span>}
                 </small>
               )}
             </div>

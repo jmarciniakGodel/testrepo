@@ -66,8 +66,10 @@ public class SummaryRepository : ISummaryRepository
     /// <param name="page">The page number (1-based)</param>
     /// <param name="pageSize">The number of items per page</param>
     /// <param name="searchQuery">Optional search query to filter results</param>
+    /// <param name="summaryNumber">Optional summary number to filter by</param>
+    /// <param name="sortDescending">Sort by created date descending (default: true)</param>
     /// <returns>Tuple containing the summaries and total count</returns>
-    public async Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedAsync(int page, int pageSize, string? searchQuery = null)
+    public async Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedAsync(int page, int pageSize, string? searchQuery = null, int? summaryNumber = null, bool sortDescending = true)
     {
         var query = _context.Summaries
             .Include(s => s.Meetings)
@@ -75,18 +77,28 @@ public class SummaryRepository : ISummaryRepository
             .ThenInclude(ma => ma.Attendant)
             .AsQueryable();
 
-        // Apply search filter if provided
+        // Apply search filter if provided (case-insensitive)
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
+            var lowerSearchQuery = searchQuery.ToLower();
             query = query.Where(s => 
-                s.Meetings.Any(m => m.Title.Contains(searchQuery)) ||
-                s.Id.ToString().Contains(searchQuery));
+                s.Meetings.Any(m => m.Title.ToLower().Contains(lowerSearchQuery)));
+        }
+
+        // Apply summary number filter if provided
+        if (summaryNumber.HasValue)
+        {
+            query = query.Where(s => s.Id == summaryNumber.Value);
         }
 
         var totalCount = await query.CountAsync();
         
+        // Apply sorting
+        query = sortDescending 
+            ? query.OrderByDescending(s => s.CreatedAt)
+            : query.OrderBy(s => s.CreatedAt);
+        
         var summaries = await query
-            .OrderByDescending(s => s.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
