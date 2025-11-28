@@ -2,6 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
+/**
+ * FileUpload component - Handles CSV file uploads for meeting attendance data
+ * @returns {JSX.Element} The rendered file upload page
+ */
 export default function FileUpload() {
   const [files, setFiles] = useState([])
   const [isUploading, setIsUploading] = useState(false)
@@ -36,13 +40,19 @@ export default function FileUpload() {
     }
   }, [summaryData])
 
-  // Handle file selection from input
+  /**
+   * Handles file selection from input element
+   * @param {Event} event - The file input change event
+   */
   const handleFileSelect = (event) => {
     const selectedFiles = Array.from(event.target.files)
     addFiles(selectedFiles)
   }
 
-  // Add files to the list, filtering for CSV only
+  /**
+   * Adds files to the upload list, filtering for CSV only
+   * @param {File[]} newFiles - Array of files to add
+   */
   const addFiles = (newFiles) => {
     const csvFiles = newFiles.filter(file => 
       file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv'
@@ -67,26 +77,38 @@ export default function FileUpload() {
     }
   }
 
-  // Remove file from list
+  /**
+   * Removes a file from the upload list
+   * @param {number} index - Index of the file to remove
+   */
   const handleRemoveFile = (index) => {
     setFiles(prevFiles => prevFiles.filter((_, i) => i !== index))
   }
 
-  // Handle drag over
+  /**
+   * Handles drag over event
+   * @param {DragEvent} event - The drag event
+   */
   const handleDragOver = (event) => {
     event.preventDefault()
     event.stopPropagation()
     setIsDragging(true)
   }
 
-  // Handle drag leave
+  /**
+   * Handles drag leave event
+   * @param {DragEvent} event - The drag event
+   */
   const handleDragLeave = (event) => {
     event.preventDefault()
     event.stopPropagation()
     setIsDragging(false)
   }
 
-  // Handle drop
+  /**
+   * Handles file drop event
+   * @param {DragEvent} event - The drop event
+   */
   const handleDrop = (event) => {
     event.preventDefault()
     event.stopPropagation()
@@ -96,7 +118,9 @@ export default function FileUpload() {
     addFiles(droppedFiles)
   }
 
-  // Handle file upload
+  /**
+   * Uploads selected files to the server
+   */
   const handleUpload = async () => {
     if (files.length === 0) {
       toast.error('Please select at least one CSV file')
@@ -149,7 +173,9 @@ export default function FileUpload() {
     }
   }
 
-  // Handle Excel download
+  /**
+   * Downloads the Excel summary file
+   */
   const handleDownloadExcel = async () => {
     if (!summaryData?.summaryId) {
       toast.error('No summary ID available')
@@ -190,7 +216,9 @@ export default function FileUpload() {
     }
   }
 
-  // Close modal (optional - can be removed since Bootstrap handles it with data-bs-dismiss)
+  /**
+   * Closes the summary modal
+   */
   const handleCloseModal = () => {
     if (modalInstanceRef.current) {
       modalInstanceRef.current.hide()
@@ -198,7 +226,11 @@ export default function FileUpload() {
     setSummaryData(null)
   }
 
-  // Format file size
+  /**
+   * Formats file size to human-readable format
+   * @param {number} bytes - File size in bytes
+   * @returns {string} Formatted file size string
+   */
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
