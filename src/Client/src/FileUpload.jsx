@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 
@@ -6,7 +6,35 @@ export default function FileUpload() {
   const [files, setFiles] = useState([])
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [summaryData, setSummaryData] = useState(null)
   const fileInputRef = useRef(null)
+  const modalRef = useRef(null)
+  const modalInstanceRef = useRef(null)
+
+  // Bootstrap Modal initialization
+  useEffect(() => {
+    if (modalRef.current && typeof window !== 'undefined' && window.bootstrap) {
+      modalInstanceRef.current = new window.bootstrap.Modal(modalRef.current)
+      
+      // Listen for modal hide event to reset data
+      modalRef.current.addEventListener('hidden.bs.modal', () => {
+        setSummaryData(null)
+      })
+    }
+    
+    return () => {
+      if (modalInstanceRef.current) {
+        modalInstanceRef.current.dispose()
+      }
+    }
+  }, [])
+  
+  // Show modal when summaryData is set
+  useEffect(() => {
+    if (summaryData && modalInstanceRef.current) {
+      modalInstanceRef.current.show()
+    }
+  }, [summaryData])
 
   // Handle file selection from input
   const handleFileSelect = (event) => {
@@ -84,39 +112,15 @@ export default function FileUpload() {
         formData.append('files', file)
       })
 
-      // Send POST request
-      const response = await axios.post('/api/home/attendancesummary', formData, {
+      // Send POST request to the new endpoint
+      const response = await axios.post('/api/MeetingUpload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
-        },
-        responseType: 'blob' // Important for file download
+        }
       })
 
-      // Handle blob response - download file
-      const blob = new Blob([response.data])
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      
-      // Try to get filename from Content-Disposition header
-      // Headers are case-insensitive, so we need to handle different casings
-      const contentDisposition = response.headers['content-disposition'] || response.headers['Content-Disposition']
-      let filename = 'attendance-summary.xlsx'
-      if (contentDisposition) {
-        // Match filename with or without quotes, stopping at semicolon or end of string
-        const filenameMatch = contentDisposition.match(/filename[*]?=['"]?([^'";]+)['"]?/i)
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].trim()
-        }
-      }
-      
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
-
-      toast.success('Files uploaded successfully! Download started.')
+      // Store the response data (summaryId and htmlTable)
+      setSummaryData(response.data)
       
       // Clear files after successful upload
       setFiles([])
@@ -129,26 +133,13 @@ export default function FileUpload() {
       // Handle error with appropriate message
       let errorMessage = 'Failed to upload files'
       
-      if (error.response) {
-        // Server responded with error
-        if (error.response.data instanceof Blob) {
-          // If error response is blob, try to read it as text
-          try {
-            const text = await error.response.data.text()
-            errorMessage = `Upload failed: ${text}`
-          } catch {
-            errorMessage = `Upload failed with status ${error.response.status}`
-          }
-        } else if (error.response.data?.message) {
-          errorMessage = error.response.data.message
-        } else {
-          errorMessage = `Upload failed with status ${error.response.status}`
-        }
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error
+      } else if (error.response) {
+        errorMessage = `Upload failed with status ${error.response.status}`
       } else if (error.request) {
-        // Request made but no response
         errorMessage = 'No response from server. Please check your connection.'
       } else {
-        // Something else happened
         errorMessage = error.message || 'An unexpected error occurred'
       }
       
@@ -156,6 +147,55 @@ export default function FileUpload() {
     } finally {
       setIsUploading(false)
     }
+  }
+
+  // Handle Excel download
+  const handleDownloadExcel = async () => {
+    if (!summaryData?.summaryId) {
+      toast.error('No summary ID available')
+      return
+    }
+
+    try {
+      const response = await axios.get(`/api/MeetingUpload/${summaryData.summaryId}/download`, {
+        responseType: 'blob'
+      })
+
+      // Create download link
+      const blob = new Blob([response.data])
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'] || response.headers['Content-Disposition']
+      let filename = 'meeting-summary.xlsx'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[*]?=['"]?([^'";]+)['"]?/i)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].trim()
+        }
+      }
+      
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+
+      toast.success('Excel file downloaded successfully!')
+    } catch (error) {
+      console.error('Download error:', error)
+      toast.error('Failed to download Excel file')
+    }
+  }
+
+  // Close modal (optional - can be removed since Bootstrap handles it with data-bs-dismiss)
+  const handleCloseModal = () => {
+    if (modalInstanceRef.current) {
+      modalInstanceRef.current.hide()
+    }
+    setSummaryData(null)
   }
 
   // Format file size
@@ -330,8 +370,46 @@ export default function FileUpload() {
               <li>Only CSV files from Microsoft Teams attendance reports are accepted</li>
               <li>You can add multiple files by dragging and dropping or using the file browser</li>
               <li>Remove individual files using the X button or clear all at once</li>
-              <li>Upon successful upload, a summary report will be downloaded automatically</li>
+              <li>Upon successful upload, a summary report will be displayed</li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Modal */}
+      <div className="modal fade" ref={modalRef} tabIndex="-1" aria-labelledby="summaryModalLabel" aria-hidden="true">
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="summaryModalLabel">Files Successfully Uploaded</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div className="modal-body">
+              <p className="text-success mb-3">Files successfully uploaded, here's your summary.</p>
+              {summaryData?.htmlTable && (
+                <div 
+                  className="table-responsive"
+                  dangerouslySetInnerHTML={{ __html: summaryData.htmlTable }}
+                />
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-success" onClick={handleDownloadExcel}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  className="me-1"
+                  viewBox="0 0 16 16"
+                >
+                  <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                  <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                </svg>
+                Download Excel Summary
+              </button>
+              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
           </div>
         </div>
       </div>

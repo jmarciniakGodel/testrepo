@@ -205,4 +205,26 @@ public class MeetingUploadController : ControllerBase
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    [HttpGet("{id}/download")]
+    public async Task<IActionResult> DownloadSummaryExcel(int id)
+    {
+        try
+        {
+            var summary = await _summaryRepository.GetByIdAsync(id);
+            
+            if (summary == null)
+            {
+                return NotFound(new { error = $"Summary with ID {id} not found" });
+            }
+
+            var fileName = $"meeting-summary-{summary.CreatedAt:yyyyMMdd-HHmmss}.xlsx";
+            
+            return File(summary.XlsxData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
 }
