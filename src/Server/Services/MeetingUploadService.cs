@@ -70,9 +70,14 @@ public class MeetingUploadService : IMeetingUploadService
                     transaction = await _dbContext.Database.BeginTransactionAsync();
                 }
             }
-            catch
+            catch (InvalidOperationException)
             {
-                // Transaction not supported, continue without it
+                // Transaction not supported by database provider
+                transaction = null;
+            }
+            catch (NotSupportedException)
+            {
+                // Transaction not supported by database provider
                 transaction = null;
             }
             
@@ -81,6 +86,9 @@ public class MeetingUploadService : IMeetingUploadService
                 var meetings = new List<Meeting>();
                 var summaryData = new SummaryData();
                 var filesList = files.ToList();
+
+                // Dictionary to cache parsed results to avoid double parsing
+                var parsedFiles = new Dictionary<string, CsvMeetingData>();
 
                 // Phase 1: Validate ALL files first (fail-fast approach)
                 _logger.LogInformation("Starting validation of {FileCount} files", filesList.Count);
@@ -115,7 +123,7 @@ public class MeetingUploadService : IMeetingUploadService
                     _logger.LogInformation("File {FileName} passed content validation. Detected type: {DetectedType}", 
                         file.FileName, validationResult.DetectedType);
 
-                    // Parse and validate CSV structure and content
+                    // Parse and validate CSV structure and content (cache the result)
                     validationStream.Position = 0;
                     var parseResult = await CsvParser.ParseAndValidateMeetingCsvAsync(validationStream);
                     
@@ -129,6 +137,9 @@ public class MeetingUploadService : IMeetingUploadService
                             $"(Error Code: {parseResult.ErrorCode})");
                     }
 
+                    // Cache parsed data to avoid re-parsing
+                    parsedFiles[file.FileName] = parseResult.Data!;
+
                     _logger.LogInformation("File {FileName} passed CSV validation. Title: {Title}, Attendees: {AttendeeCount}",
                         file.FileName, parseResult.Data!.Title, parseResult.Data.Attendees.Count);
                 }
@@ -138,9 +149,8 @@ public class MeetingUploadService : IMeetingUploadService
                 // Phase 2: Process files (only after ALL validations pass)
                 foreach (var file in filesList)
                 {
-                    // Re-parse (we know it's valid now)
-                    using var stream = file.OpenReadStream();
-                    var meetingData = await CsvParser.ParseMeetingCsvAsync(stream);
+                    // Use cached parsed data (no need to re-parse)
+                    var meetingData = parsedFiles[file.FileName];
 
                     // Create meeting
                     var meeting = new Meeting

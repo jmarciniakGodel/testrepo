@@ -64,8 +64,10 @@ public class CsvAttendeeRecord
 /// </summary>
 public static class CsvParser
 {
+    // More comprehensive email regex that matches most valid email formats
+    // Based on simplified RFC 5322 compliant pattern
     private static readonly Regex EmailRegex = new Regex(
-        @"^[^@\s]+@[^@\s]+\.[^@\s]+$", 
+        @"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", 
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>

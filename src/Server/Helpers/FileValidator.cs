@@ -242,13 +242,15 @@ public static class FileValidator
         // Check for JSON object or array start
         if (trimmed.StartsWith("{") || trimmed.StartsWith("["))
         {
-            // Try to parse as JSON to confirm
+            // Try to parse as JSON to confirm (limit to first 4KB to avoid performance issues with large files)
             try
             {
-                using var doc = JsonDocument.Parse(trimmed);
+                var sampleSize = Math.Min(content.Length, 4096);
+                var sample = content.Substring(0, sampleSize);
+                using var doc = JsonDocument.Parse(sample);
                 return true;
             }
-            catch
+            catch (JsonException)
             {
                 // Not valid JSON, continue with other checks
             }
