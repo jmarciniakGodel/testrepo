@@ -10,6 +10,27 @@ namespace Server.Controllers;
 [Route("api/[controller]")]
 public class MeetingUploadController : ControllerBase
 {
+    // Error codes constants
+    private const string ErrorCodeNoFiles = "NO_FILES";
+    private const string ErrorCodeValidationError = "VALIDATION_ERROR";
+    private const string ErrorCodeTypeMismatch = "TYPE_MISMATCH";
+    private const string ErrorCodeEmptyFile = "EMPTY_FILE";
+    private const string ErrorCodeNoAttendees = "NO_ATTENDEES";
+    private const string ErrorCodeInvalidEmail = "INVALID_EMAIL";
+    private const string ErrorCodeInvalidFormat = "INVALID_FORMAT";
+    private const string ErrorCodeServerError = "SERVER_ERROR";
+
+    // Error messages constants
+    private const string ErrorMessageNoFiles = "No files uploaded";
+    private const string HintSelectFiles = "Please select at least one CSV file to upload";
+    private const string HintValidCsv = "Please ensure you're uploading valid Teams attendance CSV files.";
+    private const string HintTypeMismatch = "The file extension does not match the actual file content. Please upload a genuine CSV file.";
+    private const string HintEmptyFile = "The uploaded file is empty. Please provide a file with valid meeting data.";
+    private const string HintNoAttendees = "The CSV file must contain at least one attendee with a valid email address.";
+    private const string HintInvalidEmail = "One or more email addresses in the CSV are invalid. Please check the email format.";
+    private const string HintInvalidFormat = "The CSV file does not have the required Teams attendance format. Please ensure all required fields are present.";
+    private const string HintServerError = "An unexpected error occurred while processing the files.";
+
     private readonly IMeetingUploadService _meetingUploadService;
     private readonly ISummaryService _summaryService;
 
@@ -38,9 +59,9 @@ public class MeetingUploadController : ControllerBase
         {
             return BadRequest(new 
             { 
-                error = "No files uploaded",
-                errorCode = "NO_FILES",
-                hint = "Please select at least one CSV file to upload"
+                error = ErrorMessageNoFiles,
+                errorCode = ErrorCodeNoFiles,
+                hint = HintSelectFiles
             });
         }
 
@@ -56,40 +77,11 @@ public class MeetingUploadController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            // Extract error code if present in message
-            var errorCode = "VALIDATION_ERROR";
-            var message = ex.Message;
-            var hint = "Please ensure you're uploading valid Teams attendance CSV files.";
-
-            if (message.Contains("TYPE_MISMATCH"))
-            {
-                errorCode = "TYPE_MISMATCH";
-                hint = "The file extension does not match the actual file content. Please upload a genuine CSV file.";
-            }
-            else if (message.Contains("EMPTY_FILE") || message.Contains("EMPTY_CONTENT"))
-            {
-                errorCode = "EMPTY_FILE";
-                hint = "The uploaded file is empty. Please provide a file with valid meeting data.";
-            }
-            else if (message.Contains("NO_ATTENDEES"))
-            {
-                errorCode = "NO_ATTENDEES";
-                hint = "The CSV file must contain at least one attendee with a valid email address.";
-            }
-            else if (message.Contains("INVALID_EMAIL"))
-            {
-                errorCode = "INVALID_EMAIL";
-                hint = "One or more email addresses in the CSV are invalid. Please check the email format.";
-            }
-            else if (message.Contains("MISSING") || message.Contains("INVALID_HEADER"))
-            {
-                errorCode = "INVALID_FORMAT";
-                hint = "The CSV file does not have the required Teams attendance format. Please ensure all required fields are present.";
-            }
+            var (errorCode, hint) = ExtractErrorCodeAndHint(ex.Message);
 
             return BadRequest(new 
             { 
-                error = message,
+                error = ex.Message,
                 errorCode = errorCode,
                 hint = hint
             });
@@ -99,10 +91,45 @@ public class MeetingUploadController : ControllerBase
             return StatusCode(500, new 
             { 
                 error = ex.Message,
-                errorCode = "SERVER_ERROR",
-                hint = "An unexpected error occurred while processing the files."
+                errorCode = ErrorCodeServerError,
+                hint = HintServerError
             });
         }
+    }
+
+    /// <summary>
+    /// Extracts error code and hint from exception message
+    /// </summary>
+    /// <param name="message">The exception message</param>
+    /// <returns>Tuple containing error code and hint</returns>
+    private (string ErrorCode, string Hint) ExtractErrorCodeAndHint(string message)
+    {
+        if (message.Contains("TYPE_MISMATCH"))
+        {
+            return (ErrorCodeTypeMismatch, HintTypeMismatch);
+        }
+
+        if (message.Contains("EMPTY_FILE") || message.Contains("EMPTY_CONTENT"))
+        {
+            return (ErrorCodeEmptyFile, HintEmptyFile);
+        }
+
+        if (message.Contains("NO_ATTENDEES"))
+        {
+            return (ErrorCodeNoAttendees, HintNoAttendees);
+        }
+
+        if (message.Contains("INVALID_EMAIL"))
+        {
+            return (ErrorCodeInvalidEmail, HintInvalidEmail);
+        }
+
+        if (message.Contains("MISSING") || message.Contains("INVALID_HEADER"))
+        {
+            return (ErrorCodeInvalidFormat, HintInvalidFormat);
+        }
+
+        return (ErrorCodeValidationError, HintValidCsv);
     }
 
     /// <summary>
