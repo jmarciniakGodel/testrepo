@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Server.Controllers;
 using Server.Data;
 using Server.Repositories;
@@ -33,11 +34,17 @@ public class MeetingUploadControllerTests
         _attendanceRepository = new MeetingAttendanceRepository(_context);
         _summaryRepository = new SummaryRepository(_context);
 
+        // Create a logger factory for testing
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<MeetingUploadService>();
+
         _meetingUploadService = new MeetingUploadService(
             _attendantRepository,
             _meetingRepository,
             _attendanceRepository,
-            _summaryRepository);
+            _summaryRepository,
+            _context,
+            logger);
 
         _summaryService = new SummaryService(_summaryRepository);
 

@@ -2,6 +2,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Server.Helpers;
 
@@ -24,6 +25,17 @@ public class CsvMeetingData
     /// Gets or sets the list of attendees
     /// </summary>
     public List<CsvAttendeeRecord> Attendees { get; set; } = new();
+}
+
+/// <summary>
+/// Represents the result of CSV parsing with validation details
+/// </summary>
+public class CsvParseResult
+{
+    public bool Success { get; set; }
+    public CsvMeetingData? Data { get; set; }
+    public string? ErrorCode { get; set; }
+    public string? ErrorMessage { get; set; }
 }
 
 /// <summary>
@@ -52,6 +64,12 @@ public class CsvAttendeeRecord
 /// </summary>
 public static class CsvParser
 {
+    // More comprehensive email regex that matches most valid email formats
+    // Based on simplified RFC 5322 compliant pattern
+    private static readonly Regex EmailRegex = new Regex(
+        @"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", 
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     /// <summary>
     /// Parses a meeting CSV file from a stream
     /// </summary>
@@ -59,25 +77,63 @@ public static class CsvParser
     /// <returns>Parsed meeting data</returns>
     public static async Task<CsvMeetingData> ParseMeetingCsvAsync(Stream stream)
     {
-        // Detect encoding
-        var encoding = DetectEncoding(stream);
-        stream.Position = 0;
-        
-        using var reader = new StreamReader(stream, encoding);
-        var content = await reader.ReadToEndAsync();
-        
-        // Reset stream for potential reuse
-        if (stream.CanSeek)
-            stream.Position = 0;
-        
-        // Try to detect format type
-        if (IsMicrosoftTeamsFormat(content))
+        var result = await ParseAndValidateMeetingCsvAsync(stream);
+        if (!result.Success)
         {
-            return ParseMicrosoftTeamsFormat(content);
+            throw new InvalidOperationException(result.ErrorMessage ?? "Failed to parse CSV");
         }
-        else
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Parses and validates a meeting CSV file with detailed error reporting
+    /// </summary>
+    /// <param name="stream">The stream containing CSV data</param>
+    /// <returns>Parse result with validation details</returns>
+    public static async Task<CsvParseResult> ParseAndValidateMeetingCsvAsync(Stream stream)
+    {
+        try
         {
-            return ParseSimpleFormat(content);
+            // Detect encoding
+            var encoding = DetectEncoding(stream);
+            stream.Position = 0;
+            
+            using var reader = new StreamReader(stream, encoding);
+            var content = await reader.ReadToEndAsync();
+            
+            // Reset stream for potential reuse
+            if (stream.CanSeek)
+                stream.Position = 0;
+            
+            // Check if content is empty
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return new CsvParseResult
+                {
+                    Success = false,
+                    ErrorCode = "EMPTY_CONTENT",
+                    ErrorMessage = "CSV file is empty or contains only whitespace"
+                };
+            }
+            
+            // Try to detect format type
+            if (IsMicrosoftTeamsFormat(content))
+            {
+                return ParseMicrosoftTeamsFormat(content);
+            }
+            else
+            {
+                return ParseSimpleFormat(content);
+            }
+        }
+        catch (Exception ex)
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "PARSE_ERROR",
+                ErrorMessage = $"Error parsing CSV: {ex.Message}"
+            };
         }
     }
 
@@ -117,11 +173,32 @@ public static class CsvParser
                (content.Contains("Meeting title\t") && content.Contains("Participant ID (UPN)"));
     }
 
-    private static CsvMeetingData ParseMicrosoftTeamsFormat(string content)
+    private static CsvParseResult ParseMicrosoftTeamsFormat(string content)
     {
         var meetingData = new CsvMeetingData();
         var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         
+        // Validate required sections exist
+        if (!content.Contains("1. Summary"))
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "MISSING_SUMMARY_SECTION",
+                ErrorMessage = "Teams CSV must contain '1. Summary' section"
+            };
+        }
+
+        if (!content.Contains("2. Participants"))
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "MISSING_PARTICIPANTS_SECTION",
+                ErrorMessage = "Teams CSV must contain '2. Participants' section"
+            };
+        }
+
         // Parse title from "Meeting title" row
         var titleLine = lines.FirstOrDefault(l => l.StartsWith("Meeting title\t"));
         if (titleLine != null)
@@ -132,6 +209,16 @@ public static class CsvParser
                 meetingData.Title = parts[1].Trim();
             }
         }
+
+        if (string.IsNullOrWhiteSpace(meetingData.Title))
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "MISSING_MEETING_TITLE",
+                ErrorMessage = "Teams CSV must contain a valid 'Meeting title' field"
+            };
+        }
         
         // Parse date from "Start time" row
         var startTimeLine = lines.FirstOrDefault(l => l.StartsWith("Start time\t"));
@@ -141,15 +228,26 @@ public static class CsvParser
             if (parts.Length >= 2)
             {
                 var dateStr = parts[1].Trim();
-                if (DateTime.TryParse(dateStr, out var parsedDate))
+                if (!DateTime.TryParse(dateStr, out var parsedDate))
                 {
-                    meetingData.Date = parsedDate;
+                    return new CsvParseResult
+                    {
+                        Success = false,
+                        ErrorCode = "INVALID_DATE_FORMAT",
+                        ErrorMessage = $"Invalid date format in 'Start time' field: {dateStr}"
+                    };
                 }
-                else
-                {
-                    meetingData.Date = DateTime.Now;
-                }
+                meetingData.Date = parsedDate;
             }
+        }
+        else
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "MISSING_START_TIME",
+                ErrorMessage = "Teams CSV must contain 'Start time' field"
+            };
         }
         
         // Find the "2. Participants" section
@@ -165,9 +263,26 @@ public static class CsvParser
         
         if (participantsSectionIdx >= 0 && participantsSectionIdx + 2 < lines.Length)
         {
-            // The next line should be the header, skip it and parse data rows
+            // The next line should be the header
             var headerIdx = participantsSectionIdx + 1;
+            var headerLine = lines[headerIdx];
             
+            // Validate header contains required fields
+            var requiredFields = new[] { "Name", "Email", "In-Meeting Duration" };
+            foreach (var field in requiredFields)
+            {
+                if (!headerLine.Contains(field))
+                {
+                    return new CsvParseResult
+                    {
+                        Success = false,
+                        ErrorCode = "INVALID_HEADER",
+                        ErrorMessage = $"Participants section header must contain '{field}' field"
+                    };
+                }
+            }
+            
+            // Parse data rows
             for (int i = headerIdx + 1; i < lines.Length; i++)
             {
                 var line = lines[i].Trim();
@@ -182,6 +297,17 @@ public static class CsvParser
                     var name = parts[0].Trim();
                     var email = parts[4].Trim();
                     var durationStr = parts[3].Trim();
+                    
+                    // Validate email format
+                    if (!string.IsNullOrWhiteSpace(email) && !EmailRegex.IsMatch(email))
+                    {
+                        return new CsvParseResult
+                        {
+                            Success = false,
+                            ErrorCode = "INVALID_EMAIL_FORMAT",
+                            ErrorMessage = $"Invalid email format: {email}"
+                        };
+                    }
                     
                     var duration = ParseDuration(durationStr);
                     
@@ -198,26 +324,38 @@ public static class CsvParser
             }
         }
         
-        if (string.IsNullOrWhiteSpace(meetingData.Title))
+        // Validate at least one attendee
+        if (meetingData.Attendees.Count == 0)
         {
-            meetingData.Title = "Untitled Meeting";
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "NO_ATTENDEES",
+                ErrorMessage = "Teams CSV must contain at least one valid attendee with email address"
+            };
         }
         
-        if (meetingData.Date == default)
+        return new CsvParseResult
         {
-            meetingData.Date = DateTime.Now;
-        }
-        
-        return meetingData;
+            Success = true,
+            Data = meetingData
+        };
     }
 
-    private static CsvMeetingData ParseSimpleFormat(string content)
+    private static CsvParseResult ParseSimpleFormat(string content)
     {
         var meetingData = new CsvMeetingData();
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         
         if (lines.Length < 3)
-            throw new InvalidOperationException("CSV file does not contain enough data");
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "INSUFFICIENT_DATA",
+                ErrorMessage = "CSV file does not contain enough data (minimum 3 lines required: title, header, and at least one attendee)"
+            };
+        }
 
         // Parse title and date from first line (expected format: "Meeting Title,Date")
         var titleLine = lines[0].Trim();
@@ -229,19 +367,43 @@ public static class CsvParser
             
             // Try to parse date from various formats
             var dateString = titleParts[1].Trim().Trim('"');
-            if (DateTime.TryParse(dateString, out var parsedDate))
+            if (!DateTime.TryParse(dateString, out var parsedDate))
             {
-                meetingData.Date = parsedDate;
+                return new CsvParseResult
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_DATE_FORMAT",
+                    ErrorMessage = $"Invalid date format: {dateString}"
+                };
             }
-            else
-            {
-                meetingData.Date = DateTime.Now;
-            }
+            meetingData.Date = parsedDate;
         }
         else
         {
             meetingData.Title = titleLine.Trim('"');
             meetingData.Date = DateTime.Now;
+        }
+
+        if (string.IsNullOrWhiteSpace(meetingData.Title))
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "MISSING_TITLE",
+                ErrorMessage = "CSV must contain a valid meeting title"
+            };
+        }
+
+        // Validate header (line 2)
+        var headerLine = lines[1].Trim();
+        if (!headerLine.ToLower().Contains("name") || !headerLine.ToLower().Contains("email"))
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "INVALID_HEADER",
+                ErrorMessage = "CSV header must contain 'Name' and 'Email' fields"
+            };
         }
 
         // Parse attendees starting from line 3 (skip title at line 1 and header at line 2)
@@ -261,6 +423,17 @@ public static class CsvParser
                 var email = csv.GetField<string>(1)?.Trim() ?? "";
                 var durationStr = csv.GetField<string>(2)?.Trim() ?? "0";
 
+                // Validate email format
+                if (!string.IsNullOrWhiteSpace(email) && !EmailRegex.IsMatch(email))
+                {
+                    return new CsvParseResult
+                    {
+                        Success = false,
+                        ErrorCode = "INVALID_EMAIL_FORMAT",
+                        ErrorMessage = $"Invalid email format: {email}"
+                    };
+                }
+
                 // Parse duration (assuming format like "30 min" or just "30")
                 var duration = ParseDuration(durationStr);
 
@@ -276,12 +449,27 @@ public static class CsvParser
             }
             catch
             {
-                // Skip malformed rows
+                // Skip malformed rows but continue
                 continue;
             }
         }
 
-        return meetingData;
+        // Validate at least one attendee
+        if (meetingData.Attendees.Count == 0)
+        {
+            return new CsvParseResult
+            {
+                Success = false,
+                ErrorCode = "NO_ATTENDEES",
+                ErrorMessage = "CSV must contain at least one valid attendee with email address"
+            };
+        }
+
+        return new CsvParseResult
+        {
+            Success = true,
+            Data = meetingData
+        };
     }
 
     private static TimeSpan ParseDuration(string durationStr)
