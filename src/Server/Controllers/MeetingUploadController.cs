@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Server.Repositories.Interfaces;
 using Server.Services.Interfaces;
 
 namespace Server.Controllers;
@@ -11,22 +10,18 @@ namespace Server.Controllers;
 [Route("api/[controller]")]
 public class MeetingUploadController : ControllerBase
 {
-    private readonly ISummaryRepository _summaryRepository;
     private readonly IMeetingUploadService _meetingUploadService;
     private readonly ISummaryService _summaryService;
 
     /// <summary>
     /// Initializes a new instance of the MeetingUploadController
     /// </summary>
-    /// <param name="summaryRepository">The summary repository for direct data access</param>
     /// <param name="meetingUploadService">The meeting upload service</param>
     /// <param name="summaryService">The summary service</param>
     public MeetingUploadController(
-        ISummaryRepository summaryRepository,
         IMeetingUploadService meetingUploadService,
         ISummaryService summaryService)
     {
-        _summaryRepository = summaryRepository;
         _meetingUploadService = meetingUploadService;
         _summaryService = summaryService;
     }
@@ -152,16 +147,15 @@ public class MeetingUploadController : ControllerBase
     {
         try
         {
-            var summary = await _summaryRepository.GetByIdAsync(id);
+            var result = await _summaryService.GetSummaryExcelAsync(id);
             
-            if (summary == null)
+            if (result == null)
             {
                 return NotFound(new { error = $"Summary with ID {id} not found" });
             }
 
-            var fileName = $"meeting-summary-{summary.CreatedAt:yyyyMMdd-HHmmss}.xlsx";
-            
-            return File(summary.XlsxData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            var (data, fileName) = result.Value;
+            return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
         catch (Exception ex)
         {

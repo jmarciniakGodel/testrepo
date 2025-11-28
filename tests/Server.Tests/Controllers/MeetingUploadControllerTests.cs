@@ -42,7 +42,6 @@ public class MeetingUploadControllerTests
         _summaryService = new SummaryService(_summaryRepository);
 
         _controller = new MeetingUploadController(
-            _summaryRepository,
             _meetingUploadService,
             _summaryService);
     }
