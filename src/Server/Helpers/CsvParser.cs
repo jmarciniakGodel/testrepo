@@ -5,22 +5,58 @@ using System.Text;
 
 namespace Server.Helpers;
 
+/// <summary>
+/// Represents meeting data parsed from CSV
+/// </summary>
 public class CsvMeetingData
 {
+    /// <summary>
+    /// Gets or sets the meeting title
+    /// </summary>
     public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the meeting date
+    /// </summary>
     public DateTime Date { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of attendees
+    /// </summary>
     public List<CsvAttendeeRecord> Attendees { get; set; } = new();
 }
 
+/// <summary>
+/// Represents an attendee record from CSV
+/// </summary>
 public class CsvAttendeeRecord
 {
+    /// <summary>
+    /// Gets or sets the attendee name
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the attendee email address
+    /// </summary>
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the duration of attendance
+    /// </summary>
     public TimeSpan Duration { get; set; }
 }
 
+/// <summary>
+/// Static helper class for parsing CSV meeting files
+/// </summary>
 public static class CsvParser
 {
+    /// <summary>
+    /// Parses a meeting CSV file from a stream
+    /// </summary>
+    /// <param name="stream">The stream containing CSV data</param>
+    /// <returns>Parsed meeting data</returns>
     public static async Task<CsvMeetingData> ParseMeetingCsvAsync(Stream stream)
     {
         // Detect encoding

@@ -1,7 +1,15 @@
 namespace Server.Helpers;
 
+/// <summary>
+/// Static helper class for validating CSV files
+/// </summary>
 public static class FileValidator
 {
+    /// <summary>
+    /// Checks if the provided MIME type is valid for CSV files
+    /// </summary>
+    /// <param name="contentType">The MIME type to validate</param>
+    /// <returns>True if the MIME type is valid for CSV files, false otherwise</returns>
     public static bool IsValidCsvMimeType(string contentType)
     {
         var validMimeTypes = new[] 
@@ -15,6 +23,11 @@ public static class FileValidator
         return validMimeTypes.Contains(contentType, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Asynchronously validates if a stream contains valid CSV file content
+    /// </summary>
+    /// <param name="stream">The stream to validate</param>
+    /// <returns>True if the stream contains valid CSV content, false otherwise</returns>
     public static async Task<bool> IsValidCsvFileAsync(Stream stream)
     {
         if (stream == null || !stream.CanRead)

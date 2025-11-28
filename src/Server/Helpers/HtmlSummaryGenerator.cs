@@ -2,15 +2,37 @@ using System.Text;
 
 namespace Server.Helpers;
 
+/// <summary>
+/// Represents summary data for meeting attendances
+/// </summary>
 public class SummaryData
 {
+    /// <summary>
+    /// Gets or sets the attendance matrix mapping attendant emails to meeting attendance durations
+    /// </summary>
     public Dictionary<string, Dictionary<string, TimeSpan>> AttendanceMatrix { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the list of meeting headers
+    /// </summary>
     public List<string> MeetingHeaders { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the list of attendant email addresses
+    /// </summary>
     public List<string> AttendantEmails { get; set; } = new();
 }
 
+/// <summary>
+/// Static helper class for generating HTML summary tables
+/// </summary>
 public static class HtmlSummaryGenerator
 {
+    /// <summary>
+    /// Generates an HTML table from summary data
+    /// </summary>
+    /// <param name="data">The summary data to convert to HTML</param>
+    /// <returns>HTML string representation of the summary table</returns>
     public static string GenerateHtmlTable(SummaryData data)
     {
         var html = new StringBuilder();
