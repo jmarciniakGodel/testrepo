@@ -36,7 +36,12 @@ public class MeetingUploadController : ControllerBase
     {
         if (files == null || files.Count == 0)
         {
-            return BadRequest(new { error = "No files uploaded" });
+            return BadRequest(new 
+            { 
+                error = "No files uploaded",
+                errorCode = "NO_FILES",
+                hint = "Please select at least one CSV file to upload"
+            });
         }
 
         try
@@ -51,11 +56,52 @@ public class MeetingUploadController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            // Extract error code if present in message
+            var errorCode = "VALIDATION_ERROR";
+            var message = ex.Message;
+            var hint = "Please ensure you're uploading valid Teams attendance CSV files.";
+
+            if (message.Contains("TYPE_MISMATCH"))
+            {
+                errorCode = "TYPE_MISMATCH";
+                hint = "The file extension does not match the actual file content. Please upload a genuine CSV file.";
+            }
+            else if (message.Contains("EMPTY_FILE") || message.Contains("EMPTY_CONTENT"))
+            {
+                errorCode = "EMPTY_FILE";
+                hint = "The uploaded file is empty. Please provide a file with valid meeting data.";
+            }
+            else if (message.Contains("NO_ATTENDEES"))
+            {
+                errorCode = "NO_ATTENDEES";
+                hint = "The CSV file must contain at least one attendee with a valid email address.";
+            }
+            else if (message.Contains("INVALID_EMAIL"))
+            {
+                errorCode = "INVALID_EMAIL";
+                hint = "One or more email addresses in the CSV are invalid. Please check the email format.";
+            }
+            else if (message.Contains("MISSING") || message.Contains("INVALID_HEADER"))
+            {
+                errorCode = "INVALID_FORMAT";
+                hint = "The CSV file does not have the required Teams attendance format. Please ensure all required fields are present.";
+            }
+
+            return BadRequest(new 
+            { 
+                error = message,
+                errorCode = errorCode,
+                hint = hint
+            });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new 
+            { 
+                error = ex.Message,
+                errorCode = "SERVER_ERROR",
+                hint = "An unexpected error occurred while processing the files."
+            });
         }
     }
 
