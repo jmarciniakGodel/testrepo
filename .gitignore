@@ -6,6 +6,11 @@ obj/
 *.userosscache
 *.sln.docstates
 
+# Database
+*.db
+*.db-shm
+*.db-wal
+
 # Node
 node_modules/
 dist/
