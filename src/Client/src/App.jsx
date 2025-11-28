@@ -3,6 +3,10 @@ import { ToastContainer } from 'react-toastify'
 import FileUpload from './FileUpload'
 import Summaries from './Summaries'
 
+/**
+ * App component - Main application component with routing and navigation
+ * @returns {JSX.Element} The rendered application
+ */
 export default function App() {
   return (
     <Router>

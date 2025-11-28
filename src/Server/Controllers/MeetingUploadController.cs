@@ -1,31 +1,36 @@
 using Microsoft.AspNetCore.Mvc;
-using Server.Helpers;
-using Server.Models;
-using Server.Repositories.Interfaces;
+using Server.Services.Interfaces;
 
 namespace Server.Controllers;
 
+/// <summary>
+/// API controller for handling meeting CSV file uploads and summary operations
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class MeetingUploadController : ControllerBase
 {
-    private readonly IAttendantRepository _attendantRepository;
-    private readonly IMeetingRepository _meetingRepository;
-    private readonly IMeetingAttendanceRepository _attendanceRepository;
-    private readonly ISummaryRepository _summaryRepository;
+    private readonly IMeetingUploadService _meetingUploadService;
+    private readonly ISummaryService _summaryService;
 
+    /// <summary>
+    /// Initializes a new instance of the MeetingUploadController
+    /// </summary>
+    /// <param name="meetingUploadService">The meeting upload service</param>
+    /// <param name="summaryService">The summary service</param>
     public MeetingUploadController(
-        IAttendantRepository attendantRepository,
-        IMeetingRepository meetingRepository,
-        IMeetingAttendanceRepository attendanceRepository,
-        ISummaryRepository summaryRepository)
+        IMeetingUploadService meetingUploadService,
+        ISummaryService summaryService)
     {
-        _attendantRepository = attendantRepository;
-        _meetingRepository = meetingRepository;
-        _attendanceRepository = attendanceRepository;
-        _summaryRepository = summaryRepository;
+        _meetingUploadService = meetingUploadService;
+        _summaryService = summaryService;
     }
 
+    /// <summary>
+    /// Uploads and processes meeting CSV files
+    /// </summary>
+    /// <param name="files">Collection of CSV files to upload</param>
+    /// <returns>Summary information including ID and HTML table</returns>
     [HttpPost]
     public async Task<IActionResult> UploadMeetingCsvs([FromForm] List<IFormFile> files)
     {
@@ -36,114 +41,17 @@ public class MeetingUploadController : ControllerBase
 
         try
         {
-            var meetings = new List<Meeting>();
-            var summaryData = new SummaryData();
-
-            // Process each file
-            foreach (var file in files)
-            {
-                // Validate MIME type
-                if (!FileValidator.IsValidCsvMimeType(file.ContentType))
-                {
-                    return BadRequest(new { error = $"Invalid file type for {file.FileName}. Expected CSV." });
-                }
-
-                // Validate file content
-                using var stream = file.OpenReadStream();
-                if (!await FileValidator.IsValidCsvFileAsync(stream))
-                {
-                    return BadRequest(new { error = $"Invalid CSV file format for {file.FileName}" });
-                }
-
-                // Parse CSV
-                stream.Position = 0;
-                var meetingData = await CsvParser.ParseMeetingCsvAsync(stream);
-
-                // Create meeting
-                var meeting = new Meeting
-                {
-                    Title = meetingData.Title,
-                    Date = meetingData.Date
-                };
-
-                meeting = await _meetingRepository.CreateAsync(meeting);
-                meetings.Add(meeting);
-
-                // Process attendees
-                foreach (var attendeeRecord in meetingData.Attendees)
-                {
-                    // Find or create attendant
-                    var attendant = await _attendantRepository.GetByEmailAsync(attendeeRecord.Email);
-                    if (attendant == null)
-                    {
-                        attendant = await _attendantRepository.CreateAsync(new Attendant
-                        {
-                            Email = attendeeRecord.Email,
-                            Name = attendeeRecord.Name
-                        });
-                    }
-
-                    // Create attendance record
-                    await _attendanceRepository.CreateAsync(new MeetingAttendance
-                    {
-                        MeetingId = meeting.Id,
-                        AttendantId = attendant.Id,
-                        Duration = attendeeRecord.Duration
-                    });
-
-                    // Update summary data
-                    var meetingKey = $"{meeting.Title} ({meeting.Date:yyyy-MM-dd})";
-                    
-                    if (!summaryData.MeetingHeaders.Contains(meetingKey))
-                    {
-                        summaryData.MeetingHeaders.Add(meetingKey);
-                    }
-
-                    if (!summaryData.AttendantEmails.Contains(attendant.Email))
-                    {
-                        summaryData.AttendantEmails.Add(attendant.Email);
-                    }
-
-                    if (!summaryData.AttendanceMatrix.ContainsKey(attendant.Email))
-                    {
-                        summaryData.AttendanceMatrix[attendant.Email] = new Dictionary<string, TimeSpan>();
-                    }
-
-                    if (!summaryData.AttendanceMatrix[attendant.Email].ContainsKey(meetingKey))
-                    {
-                        summaryData.AttendanceMatrix[attendant.Email][meetingKey] = TimeSpan.Zero;
-                    }
-
-                    summaryData.AttendanceMatrix[attendant.Email][meetingKey] += attendeeRecord.Duration;
-                }
-            }
-
-            // Generate HTML summary
-            var htmlTable = HtmlSummaryGenerator.GenerateHtmlTable(summaryData);
-
-            // Generate XLSX
-            var xlsxData = XlsxGenerator.GenerateXlsxFromSummary(summaryData);
-
-            // Create summary record
-            var summary = await _summaryRepository.CreateAsync(new Summary
-            {
-                CreatedAt = DateTime.UtcNow,
-                HtmlTable = htmlTable,
-                XlsxData = xlsxData
-            });
-
-            // Update meetings with summary reference
-            foreach (var meeting in meetings)
-            {
-                meeting.SummaryId = summary.Id;
-                await _meetingRepository.UpdateAsync(meeting);
-            }
+            var (summaryId, htmlTable) = await _meetingUploadService.ProcessMeetingFilesAsync(files);
 
             return Ok(new
             {
-                summaryId = summary.Id,
+                summaryId = summaryId,
                 htmlTable = htmlTable
             });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
@@ -151,12 +59,30 @@ public class MeetingUploadController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Retrieves all summaries with pagination and optional filtering
+    /// </summary>
+    /// <param name="page">Page number (default: 1)</param>
+    /// <param name="pageSize">Number of items per page (default: 5)</param>
+    /// <param name="search">Optional search query for meeting titles</param>
+    /// <param name="number">Optional summary number to filter by</param>
+    /// <param name="sortDesc">Sort by created date descending (default: true)</param>
+    /// <returns>Paginated list of summaries</returns>
     [HttpGet]
-    public async Task<IActionResult> GetAllSummaries()
+    public async Task<IActionResult> GetAllSummaries(
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 5, 
+        [FromQuery] string? search = null,
+        [FromQuery] int? number = null,
+        [FromQuery] bool sortDesc = true)
     {
         try
         {
-            var summaries = await _summaryRepository.GetAllAsync();
+            // Validate pagination parameters
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 5;
+
+            var (summaries, totalCount) = await _summaryService.GetPagedSummariesAsync(page, pageSize, search, number, sortDesc);
             var summaryList = summaries.Select(s => new
             {
                 id = s.Id,
@@ -165,7 +91,14 @@ public class MeetingUploadController : ControllerBase
                 htmlTable = s.HtmlTable
             });
 
-            return Ok(summaryList);
+            return Ok(new
+            {
+                summaries = summaryList,
+                page = page,
+                pageSize = pageSize,
+                totalCount = totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
         }
         catch (Exception ex)
         {
@@ -173,12 +106,17 @@ public class MeetingUploadController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Retrieves a specific summary by its identifier
+    /// </summary>
+    /// <param name="id">The summary identifier</param>
+    /// <returns>Detailed summary information</returns>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetSummaryById(int id)
     {
         try
         {
-            var summary = await _summaryRepository.GetByIdAsync(id);
+            var summary = await _summaryService.GetSummaryByIdAsync(id);
             
             if (summary == null)
             {
@@ -206,21 +144,25 @@ public class MeetingUploadController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Downloads the Excel file for a specific summary
+    /// </summary>
+    /// <param name="id">The summary identifier</param>
+    /// <returns>Excel file as a downloadable attachment</returns>
     [HttpGet("{id}/download")]
     public async Task<IActionResult> DownloadSummaryExcel(int id)
     {
         try
         {
-            var summary = await _summaryRepository.GetByIdAsync(id);
+            var result = await _summaryService.GetSummaryExcelAsync(id);
             
-            if (summary == null)
+            if (result == null)
             {
                 return NotFound(new { error = $"Summary with ID {id} not found" });
             }
 
-            var fileName = $"meeting-summary-{summary.CreatedAt:yyyyMMdd-HHmmss}.xlsx";
-            
-            return File(summary.XlsxData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            var (data, fileName) = result.Value;
+            return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
         catch (Exception ex)
         {

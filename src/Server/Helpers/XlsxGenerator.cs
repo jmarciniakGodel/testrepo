@@ -2,8 +2,16 @@ using ClosedXML.Excel;
 
 namespace Server.Helpers;
 
+/// <summary>
+/// Static helper class for generating Excel (XLSX) files
+/// </summary>
 public static class XlsxGenerator
 {
+    /// <summary>
+    /// Generates an Excel file from summary data
+    /// </summary>
+    /// <param name="data">The summary data to convert to Excel</param>
+    /// <returns>Byte array containing the Excel file</returns>
     public static byte[] GenerateXlsxFromSummary(SummaryData data)
     {
         using var workbook = new XLWorkbook();

@@ -5,6 +5,8 @@ using Server.Controllers;
 using Server.Data;
 using Server.Repositories;
 using Server.Repositories.Interfaces;
+using Server.Services;
+using Server.Services.Interfaces;
 
 namespace Server.Tests.Controllers;
 
@@ -15,6 +17,8 @@ public class MeetingUploadControllerTests
     private readonly IMeetingRepository _meetingRepository;
     private readonly IMeetingAttendanceRepository _attendanceRepository;
     private readonly ISummaryRepository _summaryRepository;
+    private readonly IMeetingUploadService _meetingUploadService;
+    private readonly ISummaryService _summaryService;
     private readonly MeetingUploadController _controller;
 
     public MeetingUploadControllerTests()
@@ -29,11 +33,17 @@ public class MeetingUploadControllerTests
         _attendanceRepository = new MeetingAttendanceRepository(_context);
         _summaryRepository = new SummaryRepository(_context);
 
-        _controller = new MeetingUploadController(
+        _meetingUploadService = new MeetingUploadService(
             _attendantRepository,
             _meetingRepository,
             _attendanceRepository,
             _summaryRepository);
+
+        _summaryService = new SummaryService(_summaryRepository);
+
+        _controller = new MeetingUploadController(
+            _meetingUploadService,
+            _summaryService);
     }
 
     [Fact]
@@ -155,7 +165,13 @@ John Doe,john@example.com,60";
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var summaries = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        
+        // Access the anonymous object value
+        var responseValue = okResult.Value;
+        var summariesProperty = responseValue?.GetType().GetProperty("summaries");
+        var summaries = summariesProperty?.GetValue(responseValue) as IEnumerable<object>;
+        
+        Assert.NotNull(summaries);
         Assert.Empty(summaries);
     }
 
@@ -175,7 +191,13 @@ John Doe,john@example.com,45";
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var summaries = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+        
+        // Access the anonymous object value
+        var responseValue = okResult.Value;
+        var summariesProperty = responseValue?.GetType().GetProperty("summaries");
+        var summaries = summariesProperty?.GetValue(responseValue) as IEnumerable<object>;
+        
+        Assert.NotNull(summaries);
         Assert.Single(summaries);
     }
 

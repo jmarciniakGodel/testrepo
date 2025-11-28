@@ -4,6 +4,8 @@ using Microsoft.Extensions.Hosting;
 using Server.Data;
 using Server.Repositories;
 using Server.Repositories.Interfaces;
+using Server.Services;
+using Server.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +28,10 @@ builder.Services.AddScoped<IAttendantRepository, AttendantRepository>();
 builder.Services.AddScoped<IMeetingRepository, MeetingRepository>();
 builder.Services.AddScoped<IMeetingAttendanceRepository, MeetingAttendanceRepository>();
 builder.Services.AddScoped<ISummaryRepository, SummaryRepository>();
+
+// Register services
+builder.Services.AddScoped<IMeetingUploadService, MeetingUploadService>();
+builder.Services.AddScoped<ISummaryService, SummaryService>();
 
 var app = builder.Build();
 

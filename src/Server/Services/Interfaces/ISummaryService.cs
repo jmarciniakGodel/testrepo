@@ -1,31 +1,18 @@
 using Server.Models;
 
-namespace Server.Repositories.Interfaces;
+namespace Server.Services.Interfaces;
 
 /// <summary>
-/// Repository interface for summary-related data operations with pagination support
+/// Service interface for summary-related business operations
 /// </summary>
-public interface ISummaryRepository
+public interface ISummaryService
 {
-    /// <summary>
-    /// Creates a new summary record
-    /// </summary>
-    /// <param name="summary">The summary to create</param>
-    /// <returns>The created summary with generated values</returns>
-    Task<Summary> CreateAsync(Summary summary);
-
     /// <summary>
     /// Retrieves a single summary by its identifier
     /// </summary>
     /// <param name="id">The summary identifier</param>
     /// <returns>The summary if found, null otherwise</returns>
-    Task<Summary?> GetByIdAsync(int id);
-
-    /// <summary>
-    /// Retrieves all summaries from the database
-    /// </summary>
-    /// <returns>Collection of all summaries</returns>
-    Task<IEnumerable<Summary>> GetAllAsync();
+    Task<Summary?> GetSummaryByIdAsync(int id);
 
     /// <summary>
     /// Retrieves summaries with pagination and optional search filtering
@@ -36,5 +23,12 @@ public interface ISummaryRepository
     /// <param name="summaryNumber">Optional summary number to filter by</param>
     /// <param name="sortDescending">Sort by created date descending (default: true)</param>
     /// <returns>Tuple containing the summaries and total count</returns>
-    Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedAsync(int page, int pageSize, string? searchQuery = null, int? summaryNumber = null, bool sortDescending = true);
+    Task<(IEnumerable<Summary> Summaries, int TotalCount)> GetPagedSummariesAsync(int page, int pageSize, string? searchQuery = null, int? summaryNumber = null, bool sortDescending = true);
+
+    /// <summary>
+    /// Retrieves the Excel file data for a specific summary
+    /// </summary>
+    /// <param name="id">The summary identifier</param>
+    /// <returns>Tuple containing Excel data and filename, or null if not found</returns>
+    Task<(byte[] Data, string FileName)?> GetSummaryExcelAsync(int id);
 }
